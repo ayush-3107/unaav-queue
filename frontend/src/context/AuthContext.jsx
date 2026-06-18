@@ -38,7 +38,12 @@ export function AuthProvider({ children }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
-  console.log("useAuthContext:", ctx);
-  if (!ctx) throw new Error('useAuthContext must be used inside <AuthProvider>');
+
+  console.log("ctx =", ctx);
+
+  if (!ctx) {
+    throw new Error("useAuthContext must be used inside <AuthProvider>");
+  }
+
   return ctx;
 }

@@ -1,47 +1,61 @@
 // src/routes/webhook.js
 //
-// Two routes:
-//   GET  /webhook  — Meta verification handshake (one-time setup)
-//   POST /webhook  — Receive all incoming WhatsApp messages
+// Snapto delivers messages in standard Meta webhook format.
+// Customer profile name is available in contacts[0].profile.name
 
-import { Router }      from 'express';
-import validateWebhook from '../middleware/validateWebhook.js';
-import StateMachine    from '../services/StateMachine.js';
+import { Router }   from 'express';
+import StateMachine from '../services/StateMachine.js';
 
 const router = Router();
 
-// ── GET /webhook ──────────────────────────────────────────────────────────────
+// ── GET /webhook — verification handshake ────────────────────────────────────
 router.get('/', (req, res) => {
   const mode      = req.query['hub.mode'];
   const token     = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    console.log('[Webhook] Verification handshake successful.');
+    console.log('[Webhook] Verification successful.');
     return res.status(200).send(challenge);
   }
 
-  console.warn('[Webhook] Verification failed — token mismatch or wrong mode.');
-  return res.sendStatus(403);
+  return res.status(200).json({ status: 'ok' });
 });
 
-// ── POST /webhook ─────────────────────────────────────────────────────────────
-router.post('/', validateWebhook, (req, res) => {
-  // Always return 200 immediately — Meta retries if no response within 5s
+// ── POST /webhook — incoming messages ────────────────────────────────────────
+router.post('/', (req, res) => {
+  // Always return 200 immediately
   res.sendStatus(200);
 
-  // Extract message from Meta payload
-  const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const value =
+    req.body?.entry?.[0]?.changes?.[0]?.value;
 
-  // Ignore non-message events (delivery receipts, read receipts, status updates)
-  if (!message) return;
+  if (!value) return;
 
-  // Process asynchronously — must not block the response
+  const message  = value.messages?.[0];
+  if (!message) {
+    console.log('[Webhook] No message — status update, ignoring.');
+    return;
+  }
+
+  // Extract customer profile name from contacts array
+  // Snapto/Meta provides this on every incoming message
+  const customerName =
+    value.contacts?.[0]?.profile?.name ?? null;
+
+  console.log(
+    `[Webhook] Message from ${message.from}: ` +
+    `"${message.text?.body ?? message.button?.text ?? '[non-text]'}" ` +
+    `| Name: ${customerName ?? 'unknown'}`
+  );
+
+  // Attach customerName to message object so StateMachine can use it
+  message._customerName = customerName;
+
   setImmediate(async () => {
     try {
       await StateMachine.handleIncomingMessage(message);
     } catch (err) {
-      // Log but do not crash the process — Meta would retry and cause duplicates
       console.error('[Webhook] StateMachine error:', err.message);
     }
   });

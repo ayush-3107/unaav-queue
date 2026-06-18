@@ -1,18 +1,9 @@
 // index.js
-//
-// Express application entry point.
-// Responsibilities:
-//   - Load environment variables
-//   - Initialise ConfigLoader (read outlets.config.json)
-//   - Register middleware
-//   - Mount routes
-//   - Start HTTP server
 
 import 'dotenv/config';
 import express          from 'express';
 import helmet           from 'helmet';
 import cors             from 'cors';
-
 import logger           from './src/utils/logger.js';
 import ConfigLoader     from './src/services/ConfigLoader.js';
 import webhookRouter    from './src/routes/webhook.js';
@@ -20,7 +11,7 @@ import authRouter       from './src/routes/auth.js';
 import queueRouter      from './src/routes/queue.js';
 import customersRouter  from './src/routes/customers.js';
 
-// ── Validate required environment variables ───────────────────────────────────
+// ── Validate required env vars ────────────────────────────────────────────────
 const REQUIRED_ENV = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
@@ -29,58 +20,39 @@ const REQUIRED_ENV = [
 const OPTIONAL_ENV = [
   'JWT_SECRET',
   'WHATSAPP_VERIFY_TOKEN',
-  'WHATSAPP_ACCESS_TOKEN',
+  'SNAPTO_API_KEY',
+  'SNAPTO_PHONE_ID',
 ];
 
-const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length > 0) {
-  console.error(
-    '[Startup] Missing required environment variables:',
-    missing.join(', ')
-  );
+  console.error('[Startup] Missing required env vars:', missing.join(', '));
   process.exit(1);
 }
 
-const missingOptional = OPTIONAL_ENV.filter((key) => !process.env[key]);
+const missingOptional = OPTIONAL_ENV.filter((k) => !process.env[k]);
 if (missingOptional.length > 0) {
-  console.warn(
-    '[Startup] Warning: Missing optional environment variables:',
-    missingOptional.join(', ')
-  );
+  console.warn('[Startup] Warning: Missing optional env vars:', missingOptional.join(', '));
 }
 
-// ── Load outlet configuration ─────────────────────────────────────────────────
-// Must happen before any route handler runs — services depend on this cache.
+// ── Load outlet config ────────────────────────────────────────────────────────
 ConfigLoader.getInstance().load();
 
 // ── Express app ───────────────────────────────────────────────────────────────
 const app = express();
 
-// ── Middleware (order matters) ────────────────────────────────────────────────
-
-// Security headers
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet());
-
-// CORS — allow only the configured frontend origin
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-
-// HTTP request logging
+app.use(cors({
+  origin:         process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods:        ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(logger);
 
-// Raw body parser for /webhook — MUST come before express.json()
-// Meta webhook signature verification requires the raw bytes.
-app.use(
-  '/webhook',
-  express.raw({ type: 'application/json' })
-);
-
-// JSON body parser for all other routes
+// JSON parser for ALL routes including /webhook
+// Snapto sends JSON directly — no raw body needed
+// (Raw body was only required for Meta direct HMAC verification)
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -90,8 +62,6 @@ app.use('/api/queue',     queueRouter);
 app.use('/api/customers', customersRouter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
-// UptimeRobot pings this every 5 minutes to keep Render from sleeping.
-// No auth required — returns minimal JSON.
 app.get('/health', (_req, res) => {
   res.status(200).json({
     status:      'ok',
@@ -100,13 +70,12 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// ── 404 handler ───────────────────────────────────────────────────────────────
+// ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found.' });
 });
 
 // ── Global error handler ──────────────────────────────────────────────────────
-// Catches any unhandled errors thrown in route handlers.
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error('[GlobalError]', err);
@@ -117,12 +86,11 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-// ── Start server ──────────────────────────────────────────────────────────────
+// ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-
 app.listen(PORT, () => {
   console.log(`[Server] Running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
-  console.log(`[Server] Health check: http://localhost:${PORT}/health`);
+  console.log(`[Server] Health: http://localhost:${PORT}/health`);
 });
 
 export default app;
