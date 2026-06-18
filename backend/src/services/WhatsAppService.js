@@ -93,7 +93,7 @@ class WhatsAppService {
    */
   static async sendConfirmation(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
-      templateName:      'queue_confirmation',
+      templateName:      'queue_confirmation_template',
       language:          'en',
       to,
       templateVariables: [
@@ -146,7 +146,7 @@ class WhatsAppService {
    */
   static async sendAlmostReady(to, customerName, outletName, position) {
     return WhatsAppService._post({
-      templateName:      'queue_almost_ready',
+      templateName:      'queue_almost_ready_template',
       language:          'en',
       to,
       templateVariables: [
@@ -171,7 +171,7 @@ class WhatsAppService {
    */
   static async sendTableConfirmed(to, customerName, outletName, partySize) {
     return WhatsAppService._post({
-      templateName:      'queue_table_confirmed',
+      templateName:      'queue_table_confirmed_template',
       language:          'en',
       to,
       templateVariables: [
@@ -195,7 +195,7 @@ class WhatsAppService {
    */
   static async sendCancelled(to, customerName, outletName) {
     return WhatsAppService._post({
-      templateName:      'queue_cancelled',
+      templateName:      'queue_cancelled_template',
       language:          'en',
       to,
       templateVariables: [outletName],
@@ -252,7 +252,7 @@ class WhatsAppService {
    */
   static async sendDeletedByManager(to, customerName, outletName) {
     return WhatsAppService._post({
-      templateName:      'cancellation_by_manager',
+      templateName:      'cancellation_by_manager_template',
       language:          'en',
       to,
       templateVariables: [
