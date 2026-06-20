@@ -55,6 +55,11 @@ class StateMachine {
     switch (session.state) {
 
       case 'idle':
+        // If customer taps a stale Cancel button while idle — ignore it
+        if (WhatsAppService.isCancelMessage(text)) {
+          console.log(`[StateMachine] Stale cancel tap in idle state from ${phone} — ignoring.`);
+          return;
+        }
         await StateMachine.handleNew(phone, text, session, customerName);
         break;
 
@@ -87,7 +92,12 @@ class StateMachine {
 
       case 'cancelled':
       case 'done':
-        // Customer is starting fresh
+        // If customer taps a stale Cancel button — ignore it
+        if (WhatsAppService.isCancelMessage(text)) {
+          console.log(`[StateMachine] Stale cancel tap in ${session.state} state — ignoring.`);
+          return;
+        }
+        // Customer is starting fresh with a new message
         await StateMachine._resetSession(phone);
         session.state = 'idle';
         await StateMachine.handleNew(phone, text, session, customerName);
@@ -253,12 +263,15 @@ class StateMachine {
       .single();
 
     if (!fullSession?.queue_entry_id) {
-      await StateMachine._resetSession(phone);
+      // No active entry — stale button tap, silently ignore
+      console.log(`[StateMachine] Stale cancel tap from ${phone} — no active entry.`);
       return;
     }
 
     const entry = await QueueEngine.getEntryById(fullSession.queue_entry_id);
     if (!entry || entry.status !== 'waiting') {
+      // Entry already cancelled/seated/deleted — stale button tap
+      console.log(`[StateMachine] Stale cancel tap from ${phone} — entry status: ${entry?.status}`);
       await StateMachine._resetSession(phone);
       return;
     }
@@ -406,10 +419,17 @@ class StateMachine {
   }
 
   static _isWithinHours(outlet) {
-    const now     = new Date();
-    const hours   = now.getHours().toString().padStart(2, '0');
-    const mins    = now.getMinutes().toString().padStart(2, '0');
+    // Convert current time to IST (UTC+5:30) regardless of server timezone
+    // Render servers run in UTC — this ensures correct comparison
+    // against opening_time/closing_time which are defined in IST
+    const now = new Date();
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(now.getTime() + istOffsetMs);
+
+    const hours   = istTime.getUTCHours().toString().padStart(2, '0');
+    const mins    = istTime.getUTCMinutes().toString().padStart(2, '0');
     const current = `${hours}:${mins}`;
+
     return current >= outlet.opening_time && current < outlet.closing_time;
   }
 }
