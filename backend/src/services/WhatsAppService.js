@@ -8,9 +8,9 @@
 // queue_welcome_template          {{1}}=outlet
 // queue_confirmation              {{1}}=position, {{2}}=outlet, {{3}}=wait
 // queue_update_position           {{1}}=outlet, {{2}}=position, {{3}}=wait
-// queue_almost_ready              {{1}}=position, {{2}}=outlet
-// queue_table_confirmed           {{1}}=party_size, {{2}}=outlet
-// queue_cancelled                 {{1}}=outlet
+// queue_almost_ready_template              {{1}}=position, {{2}}=outlet
+// queue_table_confirmed_template           {{1}}=party_size, {{2}}=outlet
+// queue_cancelled_template                 {{1}}=outlet
 
 import axios from 'axios';
 
@@ -93,7 +93,7 @@ class WhatsAppService {
    */
   static async sendConfirmation(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
-      templateName:      'queue_confirmation',
+      templateName:      'queue_confirmation_template',
       language:          'en',
       to,
       templateVariables: [
@@ -120,7 +120,7 @@ class WhatsAppService {
    */
   static async sendPositionUpdate(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
-      templateName:      'queue_update_position',
+      templateName:      'queue_update_position_template',
       language:          'en',
       to,
       templateVariables: [
@@ -135,7 +135,7 @@ class WhatsAppService {
    * sendAlmostReady(to, customerName, outletName, position)
    *
    * Update #3 — sent when position reaches 2 or 3.
-   * Template: queue_almost_ready
+   * Template: queue_almost_ready_template
    *
    * Message:
    *   "Almost your turn — get ready! 🍽️"
@@ -146,7 +146,7 @@ class WhatsAppService {
    */
   static async sendAlmostReady(to, customerName, outletName, position) {
     return WhatsAppService._post({
-      templateName:      'queue_almost_ready',
+      templateName:      'queue_almost_ready_template',
       language:          'en',
       to,
       templateVariables: [
@@ -160,7 +160,7 @@ class WhatsAppService {
    * sendTableConfirmed(to, customerName, outletName, partySize)
    *
    * Sent when manager marks customer as seated (after confirming).
-   * Template: queue_table_confirmed
+   * Template: queue_table_confirmed_template
    *
    * Message:
    *   "Your table's ready — come on in! 🎉"
@@ -171,7 +171,7 @@ class WhatsAppService {
    */
   static async sendTableConfirmed(to, customerName, outletName, partySize) {
     return WhatsAppService._post({
-      templateName:      'queue_table_confirmed',
+      templateName:      'queue_table_confirmed_template',
       language:          'en',
       to,
       templateVariables: [
@@ -185,7 +185,7 @@ class WhatsAppService {
    * sendCancelled(to, customerName, outletName)
    *
    * Sent when customer taps Cancel Reservation button.
-   * Template: queue_cancelled
+   * Template: queue_cancelled_template
    *
    * Message:
    *   "All done — we've cancelled your spot at {{1}}. ✅"
@@ -195,7 +195,7 @@ class WhatsAppService {
    */
   static async sendCancelled(to, customerName, outletName) {
     return WhatsAppService._post({
-      templateName:      'queue_cancelled',
+      templateName:      'queue_cancelled_template',
       language:          'en',
       to,
       templateVariables: [outletName],
