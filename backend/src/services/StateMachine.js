@@ -419,7 +419,7 @@ class StateMachine {
   }
 
   static _isWithinHours(outlet) {
-    // Convert current time to IST (UTC+5:30) regardless of server timezone
+  // Convert current time to IST (UTC+5:30) regardless of server timezone
     // Render servers run in UTC — this ensures correct comparison
     // against opening_time/closing_time which are defined in IST
     const now = new Date();
