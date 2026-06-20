@@ -72,6 +72,14 @@ class StateMachine {
           return;
         }
 
+        // Customer tapped "10+" — send sub-menu with exact sizes 10-19
+        // Do NOT create a queue entry yet; wait for the exact number
+        if (text?.trim().startsWith('10+')) {
+          await WhatsAppService.sendLargePartyPrompt(phone, customerName);
+          console.log(`[StateMachine] Large party prompt sent to ${phone}`);
+          break;
+        }
+
         const partySize = WhatsAppService.parsePartySize(text);
         if (partySize) {
           await StateMachine.handlePartySize(phone, partySize, session, customerName);
@@ -419,7 +427,7 @@ class StateMachine {
   }
 
   static _isWithinHours(outlet) {
-  // Convert current time to IST (UTC+5:30) regardless of server timezone
+    // Convert current time to IST (UTC+5:30) regardless of server timezone
     // Render servers run in UTC — this ensures correct comparison
     // against opening_time/closing_time which are defined in IST
     const now = new Date();

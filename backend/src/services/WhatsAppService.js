@@ -93,7 +93,7 @@ class WhatsAppService {
    */
   static async sendConfirmation(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
-      templateName:      'queue_confirmation_template',
+      templateName:      'queue_confirmation',
       language:          'en',
       to,
       templateVariables: [
@@ -146,7 +146,7 @@ class WhatsAppService {
    */
   static async sendAlmostReady(to, customerName, outletName, position) {
     return WhatsAppService._post({
-      templateName:      'queue_almost_ready_template',
+      templateName:      'queue_almost_ready',
       language:          'en',
       to,
       templateVariables: [
@@ -171,7 +171,7 @@ class WhatsAppService {
    */
   static async sendTableConfirmed(to, customerName, outletName, partySize) {
     return WhatsAppService._post({
-      templateName:      'queue_table_confirmed_template',
+      templateName:      'queue_table_confirmed',
       language:          'en',
       to,
       templateVariables: [
@@ -195,7 +195,7 @@ class WhatsAppService {
    */
   static async sendCancelled(to, customerName, outletName) {
     return WhatsAppService._post({
-      templateName:      'queue_cancelled_template',
+      templateName:      'queue_cancelled',
       language:          'en',
       to,
       templateVariables: [outletName],
@@ -252,7 +252,7 @@ class WhatsAppService {
    */
   static async sendDeletedByManager(to, customerName, outletName) {
     return WhatsAppService._post({
-      templateName:      'cancellation_by_manager_template',
+      templateName:      'cancellation_by_manager',
       language:          'en',
       to,
       templateVariables: [
@@ -261,6 +261,25 @@ class WhatsAppService {
       ],
     });
   }
+
+  /**
+   * sendLargePartyPrompt(to, customerName)
+   *
+   * Sent when customer taps "10+" on the welcome message.
+   * Template: queue_large_party
+   * Quick Reply buttons: 10-19
+   *
+   * Params: {{1}} = customer name
+   */
+  static async sendLargePartyPrompt(to, customerName) {
+    return WhatsAppService._post({
+      templateName:      'large_party_template',
+      language:          'en',
+      to,
+      templateVariables: [customerName || 'there'],
+    });
+  }
+
   static async fetchProfileName(_phone) {
     return null;
   }

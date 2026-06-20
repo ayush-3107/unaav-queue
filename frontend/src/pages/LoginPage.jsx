@@ -6,7 +6,7 @@ import { useAuth }        from '../hooks/useAuth.js';
 import apiClient          from '../apiClient.js';
 
 export default function LoginPage() {
-  const { login }    = useAuth();
+  const { setAuth  }    = useAuth();
   const navigate     = useNavigate();
 
   const [username, setUsername] = useState('');
@@ -23,7 +23,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await apiClient.post('/api/auth/login', { username, password });
-      login(data);
+      setAuth(data);
       navigate('/home', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.error ?? 'Login failed. Please try again.';

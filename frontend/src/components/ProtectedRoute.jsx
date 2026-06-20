@@ -1,18 +1,32 @@
 // src/components/ProtectedRoute.jsx
 //
-// Wraps any route that requires authentication.
-// Redirects to /login if auth is null (not logged in).
+// Guards routes that require a logged-in manager.
+// Waits for AuthContext to finish rehydrating from sessionStorage
+// before deciding to redirect — prevents flashing the login page
+// on every refresh.
 
 import { Navigate } from 'react-router-dom';
 import { useAuth }  from '../hooks/useAuth.js';
 
-// ProtectedRoute.jsx
 export default function ProtectedRoute({ children }) {
-  console.log("ProtectedRoute render");
+  console.log('ProtectedRoute render');
+  const { auth, loading } = useAuth();
 
-  const { auth } = useAuth();
+  console.log('auth =', auth);
 
-  console.log("auth =", auth);
+  // Still rehydrating from sessionStorage — render nothing yet
+  // (prevents redirect flash before auth is restored)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-sm text-gray-400">Loading...</div>
+      </div>
+    );
+  }
 
-  return auth ? children : <Navigate to="/login" replace />;
+  if (!auth) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 }
