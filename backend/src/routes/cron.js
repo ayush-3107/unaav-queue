@@ -64,9 +64,20 @@ router.post('/send-review-requests', async (req, res) => {
           continue;
         }
 
+        // Fetch customer name — prefer entry name, fallback to wa_session name
+        let customerName = entry.customer_name;
+        if (!customerName) {
+          const { data: session } = await supabase
+            .from('wa_sessions')
+            .select('customer_name')
+            .eq('queue_entry_id', entry.id)
+            .maybeSingle();
+          customerName = session?.customer_name ?? null;
+        }
+
         await WhatsAppService.sendReviewRequest(
           entry.phone,
-          entry.customer_name,
+          customerName,
           outlet.name
         );
 

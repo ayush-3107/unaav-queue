@@ -410,6 +410,17 @@ class StateMachine {
 
     const outlet = ConfigLoader.getInstance().getOutletBySlug(outletRow?.slug);
 
+    // Get best available customer name
+    let customerName = entry.customer_name;
+    if (!customerName) {
+      const { data: sess } = await supabase
+        .from('wa_sessions')
+        .select('customer_name')
+        .eq('queue_entry_id', entry.id)
+        .maybeSingle();
+      customerName = sess?.customer_name ?? null;
+    }
+
     // Store overall rating
     await supabase
       .from('queue_entries')
@@ -522,9 +533,20 @@ class StateMachine {
       })
       .eq('id', entry.id);
 
+    // Get best available customer name
+    let customerName = entry.customer_name;
+    if (!customerName) {
+      const { data: sess } = await supabase
+        .from('wa_sessions')
+        .select('customer_name')
+        .eq('queue_entry_id', entry.id)
+        .maybeSingle();
+      customerName = sess?.customer_name ?? null;
+    }
+
     // Send thank-you message
     try {
-      await WhatsAppService.sendReviewThankYou(phone, entry.customer_name);
+      await WhatsAppService.sendReviewThankYou(phone, customerName);
     } catch (waErr) {
       console.warn('[StateMachine] Thank-you send failed:', waErr.message);
     }
