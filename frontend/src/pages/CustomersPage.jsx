@@ -1,9 +1,11 @@
 // src/pages/CustomersPage.jsx
 //
 // Historical log of all queue entries for the outlet.
-// Filterable by date, status, and search.
+// Filterable by date, status, rating, and search.
 // Supports CSV export.
+// Now includes review columns: Overall Rating, Food, Service, Ambiance, Feedback.
 
+import { useState }        from 'react';
 import { Link }            from 'react-router-dom';
 import { format }          from 'date-fns';
 import { useAuth }         from '../hooks/useAuth.js';
@@ -11,6 +13,16 @@ import { useCustomers }    from '../hooks/useCustomers.js';
 import StatusBadge         from '../components/StatusBadge.jsx';
 
 const LIMIT = 50;
+
+// Renders rating as "3/5" or "—" if not rated
+function RatingCell({ value }) {
+  if (value == null) return <span className="text-gray-300">—</span>;
+  return (
+    <span className="text-sm text-gray-700 font-medium">
+      {value}/5
+    </span>
+  );
+}
 
 export default function CustomersPage() {
   const { auth }   = useAuth();
@@ -22,6 +34,19 @@ export default function CustomersPage() {
     page, setPage,
     exportCSV,
   } = useCustomers(auth.outlet_id);
+
+  // Rating filter — client-side filter on fetched entries
+  const [ratingFilter, setRatingFilter] = useState('all');
+
+  // Apply rating filter on top of server-filtered entries
+  const filteredEntries = entries.filter((e) => {
+    if (ratingFilter === 'all')      return true;
+    if (ratingFilter === '5')        return e.overall_rating === 5;
+    if (ratingFilter === '4')        return e.overall_rating === 4;
+    if (ratingFilter === '3orless')  return e.overall_rating != null && e.overall_rating <= 3;
+    if (ratingFilter === 'unrated')  return e.overall_rating == null;
+    return true;
+  });
 
   const totalPages = Math.ceil(total / LIMIT);
 
@@ -93,6 +118,20 @@ export default function CustomersPage() {
                      focus:outline-none focus:ring-2 focus:ring-brand
                      placeholder-gray-400 min-w-[200px]"
         />
+
+        {/* Rating filter */}
+        <select
+          value={ratingFilter}
+          onChange={(e) => setRatingFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg
+                     focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+        >
+          <option value="all">All Ratings</option>
+          <option value="5">5/5</option>
+          <option value="4">4/5</option>
+          <option value="3orless">3/5 or less</option>
+          <option value="unrated">Not Rated</option>
+        </select>
       </div>
 
       {/* ── Table ───────────────────────────────────────────────────────────── */}
@@ -103,20 +142,21 @@ export default function CustomersPage() {
               <div key={i} className="h-10 bg-gray-200 rounded-lg animate-pulse" />
             ))}
           </div>
-        ) : entries.length === 0 ? (
+        ) : filteredEntries.length === 0 ? (
           <div className="text-center py-16 text-gray-400 text-sm">
             No entries found for the selected filters.
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-2">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[900px]">
+              <table className="w-full text-left min-w-[1400px]">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     {[
                       'S.No', 'Name', 'Pax', 'Phone', 'Status',
                       'Arrived At', 'Init. Pos', 'Est. Wait',
                       'Total Wait', 'Action Time',
+                      'Rating', 'Food', 'Service', 'Ambiance', 'Feedback',
                     ].map((h) => (
                       <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">
                         {h}
@@ -125,7 +165,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map((entry, index) => {
+                  {filteredEntries.map((entry, index) => {
                     const totalWait = entry.action_at && entry.arrived_at
                       ? Math.round(
                           (new Date(entry.action_at) - new Date(entry.arrived_at)) / 60000
@@ -179,6 +219,29 @@ export default function CustomersPage() {
                               {format(new Date(entry.action_at), 'dd MMM, hh:mm a')}
                             </span>
                           ) : '—'}
+                        </td>
+
+                        {/* ── Review columns ──────────────────────────────── */}
+                        <td className="px-4 py-3">
+                          <RatingCell value={entry.overall_rating} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <RatingCell value={entry.food_rating} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <RatingCell value={entry.service_rating} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <RatingCell value={entry.ambiance_rating} />
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 max-w-[220px]">
+                          {entry.user_feedback ? (
+                            <span title={entry.user_feedback} className="line-clamp-2">
+                              {entry.user_feedback}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                       </tr>
                     );

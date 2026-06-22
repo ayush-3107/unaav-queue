@@ -45,9 +45,14 @@ router.post('/', (req, res) => {
 
   console.log(
     `[Webhook] Message from ${message.from}: ` +
-    `"${message.text?.body ?? message.button?.text ?? '[non-text]'}" ` +
+    `"${message.text?.body ?? message.button?.text ?? message.interactive?.type ?? '[non-text]'}" ` +
     `| Name: ${customerName ?? 'unknown'}`
   );
+
+  // Log Flow completion payloads for debugging
+  if (message.interactive?.type === 'nfm_reply') {
+    console.log('[Webhook] NFM Reply full payload:', JSON.stringify(message.interactive, null, 2));
+  }
 
   // Attach customerName to message object so StateMachine can use it
   message._customerName = customerName;

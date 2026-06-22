@@ -3,6 +3,7 @@
 // Fetches the historical customer log with filters.
 // Refetches automatically when any filter changes (debounced for search).
 // Exposes exportCSV() to trigger a CSV file download.
+// CSV now includes review columns.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
@@ -102,6 +103,12 @@ export function useCustomers(outletId) {
         'Entry / Action Time': e.action_at
           ? format(new Date(e.action_at), 'dd MMM, hh:mm a')
           : '',
+        // ── Review columns ──────────────────────────────────────────────
+        'Rating':          e.overall_rating  ?? '',
+        'Food Rating':     e.food_rating      ?? '',
+        'Service Rating':  e.service_rating   ?? '',
+        'Ambiance Rating': e.ambiance_rating  ?? '',
+        'User Feedback':   e.user_feedback    ?? '',
       }));
 
       const csv      = Papa.unparse(rows);

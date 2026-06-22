@@ -6,11 +6,17 @@
 // Template map (exact Snapto names → variables):
 //
 // queue_welcome_template          {{1}}=outlet
-// queue_confirmation              {{1}}=position, {{2}}=outlet, {{3}}=wait
-// queue_update_position           {{1}}=outlet, {{2}}=position, {{3}}=wait
-// queue_almost_ready_template              {{1}}=position, {{2}}=outlet
-// queue_table_confirmed_template           {{1}}=party_size, {{2}}=outlet
-// queue_cancelled_template                 {{1}}=outlet
+// queue_confirmation_template     {{1}}=position, {{2}}=outlet, {{3}}=wait
+// queue_update_position_template  {{1}}=outlet, {{2}}=position, {{3}}=wait
+// queue_almost_ready_template     {{1}}=position, {{2}}=outlet
+// queue_table_confirmed_template  {{1}}=party_size, {{2}}=outlet
+// queue_cancelled_template        {{1}}=outlet
+// cancellation_by_manager         {{1}}=customer name, {{2}}=outlet
+// large_party_template            {{1}}=customer name
+// queue_review_request            {{1}}=customer name, {{2}}=outlet
+// queue_review_positive           {{1}}=customer name, {{2}}=outlet
+// queue_review_negative           {{1}}=customer name (Flow button attached)
+// queue_review_thanks             {{1}}=customer name
 
 import axios from 'axios';
 
@@ -54,20 +60,8 @@ class WhatsAppService {
     }
   }
 
-  // ── Send methods ──────────────────────────────────────────────────────────
+  // ── Queue flow send methods ─────────────────────────────────────────────────
 
-  /**
-   * sendWelcome(to, outletName)
-   *
-   * Sent when customer first messages the outlet.
-   * Template: queue_welcome_template
-   *
-   * Message:
-   *   "Hey there! 👋 Welcome to Unaav – The Dakshin Cafe ({{1}} outlet)..."
-   *   "Just reply with a number — e.g. 3 for a table of 3"
-   *
-   * Params: {{1}} = outlet name
-   */
   static async sendWelcome(to, outletName) {
     return WhatsAppService._post({
       templateName:      'queue_welcome_template',
@@ -77,20 +71,6 @@ class WhatsAppService {
     });
   }
 
-  /**
-   * sendConfirmation(to, customerName, outletName, position, waitMins)
-   *
-   * Update #1 — sent immediately after customer joins queue.
-   * Template: queue_confirmation
-   *
-   * Message:
-   *   "You're in! 🎉 Consider your spot saved."
-   *   "You're token #{{1}} at {{2}}, and we're looking at about a {{3}} minute wait."
-   *   "Hang out, relax — we'll buzz you the second your table's ready! 🙌"
-   *   [Cancel Reservation button]
-   *
-   * Params: {{1}}=position, {{2}}=outlet, {{3}}=wait
-   */
   static async sendConfirmation(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
       templateName:      'queue_confirmation_template',
@@ -104,95 +84,43 @@ class WhatsAppService {
     });
   }
 
-  /**
-   * sendPositionUpdate(to, customerName, outletName, position, waitMins)
-   *
-   * Update #2 — sent when position drops to ~50% of initial.
-   * Template: queue_update_position
-   *
-   * Message:
-   *   "Hey, quick one from {{1}}! 🔔"
-   *   "You've moved up — you're #{{2}} now, with roughly {{3}} minutes to go."
-   *   [Cancel Reservation button]
-   *
-   * Params: {{1}}=outlet, {{2}}=position, {{3}}=wait
-   * NOTE: outlet is FIRST for this template (different order from others)
-   */
   static async sendPositionUpdate(to, customerName, outletName, position, waitMins) {
     return WhatsAppService._post({
       templateName:      'queue_update_position_template',
       language:          'en',
       to,
       templateVariables: [
-        outletName,        // {{1}} = outlet (first for this template)
-        String(position),  // {{2}} = position
-        String(waitMins),  // {{3}} = wait
+        outletName,
+        String(position),
+        String(waitMins),
       ],
     });
   }
 
-  /**
-   * sendAlmostReady(to, customerName, outletName, position)
-   *
-   * Update #3 — sent when position reaches 2 or 3.
-   * Template: queue_almost_ready_template
-   *
-   * Message:
-   *   "Almost your turn — get ready! 🍽️"
-   *   "You're #{{1}} in line at {{2}}. Start making your way to the entrance..."
-   *   [Cancel Reservation button]
-   *
-   * Params: {{1}}=position, {{2}}=outlet
-   */
   static async sendAlmostReady(to, customerName, outletName, position) {
     return WhatsAppService._post({
       templateName:      'queue_almost_ready_template',
       language:          'en',
       to,
       templateVariables: [
-        String(position),  // {{1}} = position
-        outletName,        // {{2}} = outlet
+        String(position),
+        outletName,
       ],
     });
   }
 
-  /**
-   * sendTableConfirmed(to, customerName, outletName, partySize)
-   *
-   * Sent when manager marks customer as seated (after confirming).
-   * Template: queue_table_confirmed_template
-   *
-   * Message:
-   *   "Your table's ready — come on in! 🎉"
-   *   "We've got the perfect spot for your party of {{1}} at {{2}}."
-   *   "Enjoy every bite! 😋🍽️"
-   *
-   * Params: {{1}}=party_size, {{2}}=outlet
-   */
   static async sendTableConfirmed(to, customerName, outletName, partySize) {
     return WhatsAppService._post({
       templateName:      'queue_table_confirmed_template',
       language:          'en',
       to,
       templateVariables: [
-        String(partySize), // {{1}} = party size
-        outletName,        // {{2}} = outlet
+        String(partySize),
+        outletName,
       ],
     });
   }
 
-  /**
-   * sendCancelled(to, customerName, outletName)
-   *
-   * Sent when customer taps Cancel Reservation button.
-   * Template: queue_cancelled_template
-   *
-   * Message:
-   *   "All done — we've cancelled your spot at {{1}}. ✅"
-   *   "No worries at all! Whenever that South Indian craving strikes..."
-   *
-   * Params: {{1}}=outlet
-   */
   static async sendCancelled(to, customerName, outletName) {
     return WhatsAppService._post({
       templateName:      'queue_cancelled_template',
@@ -202,14 +130,116 @@ class WhatsAppService {
     });
   }
 
+  static async sendDeletedByManager(to, customerName, outletName) {
+    return WhatsAppService._post({
+      templateName:      'cancellation_by_manager_template',
+      language:          'en',
+      to,
+      templateVariables: [
+        customerName || 'Guest',
+        outletName,
+      ],
+    });
+  }
+
+  static async sendLargePartyPrompt(to, customerName) {
+    return WhatsAppService._post({
+      templateName:      'large_party_template',
+      language:          'en',
+      to,
+      templateVariables: [customerName || 'there'],
+    });
+  }
+
+  // ── Review system send methods ──────────────────────────────────────────────
+
+  /**
+   * sendReviewRequest(to, customerName, outletName)
+   *
+   * Sent 90 minutes after table confirmation (via cron job).
+   * Template: review_request_template
+   * Buttons (Quick Reply): "5 Star" | "4 Star" | "3 Star or less"
+   *
+   * Message:
+   *   "Hi {{1}}, Thank you for dining with us at {{2}}! 🌟
+   *    Please take a moment to rate your experience. We truly appreciate your time!"
+   *
+   * Params: {{1}}=customer name, {{2}}=outlet
+   */
+  static async sendReviewRequest(to, customerName, outletName) {
+    return WhatsAppService._post({
+      templateName:      'review_request_template',
+      language:          'en',
+      to,
+      templateVariables: [
+        customerName || 'Guest',
+        outletName,
+      ],
+    });
+  }
+
+  /**
+   * sendReviewPositive(to, customerName, outletName)
+   *
+   * Sent when customer taps "5 Star" or "4 Star".
+   * Template: review_positive_template
+   *
+   * Params: {{1}}=customer name, {{2}}=outlet
+   */
+  static async sendReviewPositive(to, customerName, outletName) {
+    return WhatsAppService._post({
+      templateName:      'review_positive_template',
+      language:          'en',
+      to,
+      templateVariables: [
+        customerName || 'Guest',
+        outletName,
+      ],
+    });
+  }
+
+  /**
+   * sendReviewNegative(to, customerName)
+   *
+   * Sent when customer taps "3 Star or less".
+   * Template: review_negative_template
+   * Has a Flow-type button ("Show More Details") attached in Snapto
+   * which opens the native multi-screen feedback form.
+   *
+   * Params: {{1}}=customer name
+   */
+  static async sendReviewNegative(to, customerName) {
+    return WhatsAppService._post({
+      templateName:      'review_negative_template',
+      language:          'en',
+      to,
+      templateVariables: [customerName || 'Guest'],
+    });
+  }
+
+  /**
+   * sendReviewThankYou(to, customerName)
+   *
+   * Sent after customer completes the feedback Flow.
+   * Template: review_feedback_received_template
+   *
+   * Params: {{1}}=customer name
+   */
+  static async sendReviewThankYou(to, customerName) {
+    return WhatsAppService._post({
+      templateName:      'review_feedback_received_template',
+      language:          'en',
+      to,
+      templateVariables: [customerName || 'Guest'],
+    });
+  }
+
   // ── Input parsers ─────────────────────────────────────────────────────────
 
   /**
    * parsePartySize(text)
-   *
-   * Parses party size from plain text reply.
-   * Customer types '3', '5', '10' etc. in response to queue_welcome_template.
-   * Returns integer 1-20 or null if not parseable.
+   * Parses party size from plain text reply ('3', '10', etc.)
+   * Returns integer 1-20 or null.
    */
   static parsePartySize(text) {
     if (!text) return null;
@@ -222,11 +252,7 @@ class WhatsAppService {
 
   /**
    * isCancelMessage(text)
-   *
-   * Returns true if customer tapped Cancel Reservation button
-   * or typed CANCEL as plain text.
-   *
-   * Snapto sends button taps as: msg.button.text = "Cancel Reservation"
+   * Returns true for "Cancel Reservation" button tap or "CANCEL" text.
    */
   static isCancelMessage(text) {
     if (!text) return false;
@@ -239,45 +265,29 @@ class WhatsAppService {
   }
 
   /**
-   * sendDeletedByManager(to, customerName, outletName)
+   * parseStarRating(text)
    *
-   * Sent when manager deletes a customer entry from the dashboard.
-   * Template: cancellation_by_manager
+   * Parses the customer's reply to queue_review_request.
+   * Buttons are: "5 Star" | "4 Star" | "3 Star or less"
    *
-   * Message:
-   *   "Aw, sorry to see you go, {{1}}! 😔"
-   *   "Your spot at {{2}} has been removed..."
+   * Returns:
+   *   5   → customer tapped "5 Star"
+   *   4   → customer tapped "4 Star"
+   *   3   → customer tapped "3 Star or less" (treated as the negative-flow trigger)
+   *   null → not a recognised rating reply
    *
-   * Params: {{1}}=customer name, {{2}}=outlet
+   * Note: "3 Star or less" is mapped to 3 specifically so downstream logic
+   * `starRating >= 4` correctly routes it to the negative/feedback-form path.
    */
-  static async sendDeletedByManager(to, customerName, outletName) {
-    return WhatsAppService._post({
-      templateName:      'cancellation_by_manager',
-      language:          'en',
-      to,
-      templateVariables: [
-        customerName || 'Guest',
-        outletName,
-      ],
-    });
-  }
+  static parseStarRating(text) {
+    if (!text) return null;
+    const n = text.trim().toUpperCase();
 
-  /**
-   * sendLargePartyPrompt(to, customerName)
-   *
-   * Sent when customer taps "10+" on the welcome message.
-   * Template: queue_large_party
-   * Quick Reply buttons: 10-19
-   *
-   * Params: {{1}} = customer name
-   */
-  static async sendLargePartyPrompt(to, customerName) {
-    return WhatsAppService._post({
-      templateName:      'large_party_template',
-      language:          'en',
-      to,
-      templateVariables: [customerName || 'there'],
-    });
+    if (n === '5 STAR' || n === '5') return 5;
+    if (n === '4 STAR' || n === '4') return 4;
+    if (n.includes('3 STAR OR LESS') || n === '3') return 3;
+
+    return null;
   }
 
   static async fetchProfileName(_phone) {

@@ -10,6 +10,8 @@ import webhookRouter    from './src/routes/webhook.js';
 import authRouter       from './src/routes/auth.js';
 import queueRouter      from './src/routes/queue.js';
 import customersRouter  from './src/routes/customers.js';
+import reviewsRouter    from './src/routes/reviews.js';
+import cronRouter       from './src/routes/cron.js';
 
 // ── Validate required env vars ────────────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -22,6 +24,7 @@ const OPTIONAL_ENV = [
   'WHATSAPP_VERIFY_TOKEN',
   'SNAPTO_API_KEY',
   'SNAPTO_PHONE_ID',
+  'CRON_SECRET',
 ];
 
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -51,8 +54,6 @@ app.use(cors({
 app.use(logger);
 
 // JSON parser for ALL routes including /webhook
-// Snapto sends JSON directly — no raw body needed
-// (Raw body was only required for Meta direct HMAC verification)
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,8 @@ app.use('/webhook',       webhookRouter);
 app.use('/api/auth',      authRouter);
 app.use('/api/queue',     queueRouter);
 app.use('/api/customers', customersRouter);
+app.use('/api/reviews',   reviewsRouter);
+app.use('/api/cron',      cronRouter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

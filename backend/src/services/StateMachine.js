@@ -16,6 +16,24 @@ class StateMachine {
   static async handleIncomingMessage(msg) {
     const phone = msg.from.startsWith('+') ? msg.from : `+${msg.from}`;
 
+    // ── WhatsApp Flow completion ───────────────────────────────────────────
+    // When customer submits the feedback Flow, WhatsApp delivers an
+    // interactive.nfm_reply message containing the Flow's final payload
+    // as a JSON string in response_json. This bypasses normal text routing
+    // since it's not tied to wa_session state machine transitions.
+    if (msg.interactive?.type === 'nfm_reply') {
+      const lockKey = `${phone}:${msg.id}`;
+      if (_processing.has(lockKey)) {
+        console.log(`[StateMachine] Duplicate flow reply ignored: ${lockKey}`);
+        return;
+      }
+      _processing.add(lockKey);
+      setTimeout(() => _processing.delete(lockKey), 10000);
+
+      await StateMachine.handleFlowReply(phone, msg);
+      return;
+    }
+
     // Extract text from all payload locations Snapto uses
     const text =
       msg.text?.body?.trim()                       ??
@@ -60,6 +78,15 @@ class StateMachine {
           console.log(`[StateMachine] Stale cancel tap in idle state from ${phone} — ignoring.`);
           return;
         }
+
+        // Star rating tap while idle — could be a rating reply where session
+        // was reset after seating. Look up most recent seated entry by phone.
+        if (WhatsAppService.parseStarRating(text) !== null) {
+          const starRating = WhatsAppService.parseStarRating(text);
+          await StateMachine.handleReviewRating(phone, starRating, session);
+          return;
+        }
+
         await StateMachine.handleNew(phone, text, session, customerName);
         break;
 
@@ -99,17 +126,37 @@ class StateMachine {
         break;
 
       case 'cancelled':
-      case 'done':
+      case 'done': {
         // If customer taps a stale Cancel button — ignore it
         if (WhatsAppService.isCancelMessage(text)) {
           console.log(`[StateMachine] Stale cancel tap in ${session.state} state — ignoring.`);
           return;
         }
-        // Customer is starting fresh with a new message
+
+        // Star rating buttons (4 Star, 5 Star, 3 Star or less) are now handled
+        // by Snapto's chatbot flow — our backend only needs to handle the
+        // overall_rating DB update when these arrive here as a fallback.
+        const starRating = WhatsAppService.parseStarRating(text);
+        if (starRating !== null && session.queue_entry_id) {
+          await StateMachine.handleReviewRating(phone, starRating, session);
+          break;
+        }
+
+        // Any BUTTON tap that isn't recognized should be ignored —
+        // only plain typed TEXT starts a new queue session.
+        if (msg.type === 'button' || msg.type === 'interactive') {
+          console.log(
+            `[StateMachine] Unrecognized button tap "${text}" in ${session.state} state — ignoring.`
+          );
+          return;
+        }
+
+        // Customer typed a fresh text message — start over
         await StateMachine._resetSession(phone);
         session.state = 'idle';
         await StateMachine.handleNew(phone, text, session, customerName);
         break;
+      }
 
       default:
         await StateMachine.handleUnknown(phone, session);
@@ -311,6 +358,181 @@ class StateMachine {
     }
 
     console.log(`[StateMachine] Cancelled reservation for ${phone}`);
+  }
+
+  // ── handleReviewRating ────────────────────────────────────────────────────
+  /**
+   * handleReviewRating(phone, starRating, session)
+   *
+   * Customer replied with a star rating (1-5) to the review request.
+   * 4-5 stars → positive thank-you message.
+   * 1-3 stars → apology message + feedback form CTA.
+   */
+  static async handleReviewRating(phone, starRating, session) {
+    // Phone is stored in DB without country code prefix in older entries
+    // e.g. DB has '8930188922' but phone param is '+918930188922'
+    // Build multiple formats to search across all possible stored formats
+    const phoneVariants = [
+      phone,                                    // +918930188922
+      phone.replace(/^\+/, ''),                 // 918930188922
+      phone.replace(/^\+91/, ''),               // 8930188922
+      phone.replace(/^\+/, '').replace(/^91/, '') // 8930188922 (alt)
+    ];
+
+    // Find most recent seated entry for this phone across all formats
+    // Accept any review_state except already-completed ones
+    const { data: entry } = await supabase
+      .from('queue_entries')
+      .select('id, customer_name, outlet_id, review_state')
+      .in('phone', phoneVariants)
+      .eq('status', 'seated')
+      .not('review_state', 'in', '("rated","completed","feedback_requested")')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!entry) {
+      console.warn(`[StateMachine] No seated entry found for review rating from ${phone}`);
+      return;
+    }
+
+    // Guard: only accept rating once
+    if (entry.review_state === 'rated' || entry.review_state === 'completed') {
+      console.log(`[StateMachine] Rating already recorded for entry ${entry.id} — ignoring.`);
+      return;
+    }
+
+    const { data: outletRow } = await supabase
+      .from('outlets')
+      .select('slug')
+      .eq('id', entry.outlet_id)
+      .single();
+
+    const outlet = ConfigLoader.getInstance().getOutletBySlug(outletRow?.slug);
+
+    // Store overall rating
+    await supabase
+      .from('queue_entries')
+      .update({
+        overall_rating: starRating,
+        review_state:   starRating >= 4 ? 'rated' : 'feedback_requested',
+      })
+      .eq('id', entry.id);
+
+    console.log(`[StateMachine] Review rating ${starRating}★ saved for entry ${entry.id}`);
+
+    if (starRating >= 4) {
+      // Positive — Snapto chatbot sends the positive template
+      // We only save to DB here; no WA message needed from backend
+      console.log(`[StateMachine] Positive review (${starRating}★) recorded for ${phone}`);
+    } else {
+      // Negative — Snapto chatbot sends the negative template + Flow
+      // We only save to DB here; no WA message needed from backend
+      console.log(`[StateMachine] Negative review (${starRating}★) recorded for ${phone} — Snapto handles negative template`);
+    }
+  }
+
+  // ── handleFlowReply ───────────────────────────────────────────────────────
+  /**
+   * handleFlowReply(phone, msg)
+   *
+   * Customer completed the WhatsApp Flow feedback form.
+   * msg.interactive.nfm_reply.response_json is a JSON STRING containing:
+   *   { food_rating, ambiance_rating, service_rating, user_feedback }
+   *
+   * Finds the customer's most recent entry awaiting feedback
+   * (review_state = 'feedback_requested') and saves the detailed ratings.
+   */
+  static async handleFlowReply(phone, msg) {
+    const rawResponse = msg.interactive?.nfm_reply?.response_json;
+
+    console.log('[FlowReply] nfm_reply object:', JSON.stringify(msg.interactive?.nfm_reply));
+    console.log('[FlowReply] response_json:', rawResponse);
+
+    if (!rawResponse) {
+      console.warn(`[StateMachine] Flow reply with no response_json from ${phone}`);
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = typeof rawResponse === 'string' ? JSON.parse(rawResponse) : rawResponse;
+    } catch (err) {
+      console.error(`[StateMachine] Failed to parse flow response_json:`, err.message, rawResponse);
+      return;
+    }
+
+    console.log('[FlowReply] Parsed keys:', Object.keys(parsed));
+    console.log('[FlowReply] Parsed values:', JSON.stringify(parsed));
+
+    // Snapto Flow values look like: "4_★☆☆☆☆_•_Very_Poor_(1/5)"
+    // The actual star rating is the number before "/5" in parentheses
+    const extractRating = (val) => {
+      if (!val) return null;
+      const match = String(val).match(/\((\d)\/5\)/);
+      if (match) return parseInt(match[1], 10);
+      // Fallback: try first character (for simple numeric IDs)
+      const n = parseInt(String(val).charAt(0), 10);
+      return (n >= 1 && n <= 5) ? n : null;
+    };
+
+    // Find keys dynamically — don't hardcode since Snapto may vary
+    const foodKey     = Object.keys(parsed).find(k => k.toLowerCase().includes('food'));
+    const ambianceKey = Object.keys(parsed).find(k => k.toLowerCase().includes('ambien'));
+    const serviceKey  = Object.keys(parsed).find(k => k.toLowerCase().includes('customer_service') || k.toLowerCase().includes('service'));
+    const feedbackKey = Object.keys(parsed).find(k => k.toLowerCase().includes('comment') || k.toLowerCase().includes('feedback') || k.toLowerCase().includes('leave'));
+
+    const foodRating     = extractRating(parsed[foodKey]);
+    const ambianceRating = extractRating(parsed[ambianceKey]);
+    const serviceRating  = extractRating(parsed[serviceKey]);
+    const userFeedback   = feedbackKey ? (parsed[feedbackKey]?.trim() || null) : null;
+
+    console.log(`[FlowReply] Extracted — food=${foodRating}, ambiance=${ambianceRating}, service=${serviceRating}, feedback="${userFeedback}"`);
+
+    // Build phone variants to match across all stored formats
+    const phoneVariants = [
+      phone,
+      phone.replace(/^\+/, ''),
+      phone.replace(/^\+91/, ''),
+    ];
+
+    // Find the entry awaiting detailed feedback for this phone.
+    const { data: entry, error } = await supabase
+      .from('queue_entries')
+      .select('id, customer_name, review_state')
+      .in('phone', phoneVariants)
+      .eq('review_state', 'feedback_requested')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !entry) {
+      console.warn(`[StateMachine] No entry awaiting feedback for ${phone} — ignoring flow reply.`);
+      return;
+    }
+
+    await supabase
+      .from('queue_entries')
+      .update({
+        food_rating:     foodRating,
+        ambiance_rating: ambianceRating,
+        service_rating:  serviceRating,
+        user_feedback:   userFeedback,
+        review_state:    'completed',
+      })
+      .eq('id', entry.id);
+
+    // Send thank-you message
+    try {
+      await WhatsAppService.sendReviewThankYou(phone, entry.customer_name);
+    } catch (waErr) {
+      console.warn('[StateMachine] Thank-you send failed:', waErr.message);
+    }
+
+    console.log(
+      `[StateMachine] Feedback Flow completed for entry ${entry.id} — ` +
+      `food=${foodRating}, ambiance=${ambianceRating}, service=${serviceRating}`
+    );
   }
 
   // ── handleActiveQueueMessage ──────────────────────────────────────────────
