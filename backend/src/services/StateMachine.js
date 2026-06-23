@@ -551,6 +551,41 @@ class StateMachine {
       console.warn('[StateMachine] Thank-you send failed:', waErr.message);
     }
 
+    // Send low rating alert to all manager alert_phones for this outlet
+    try {
+      const { data: entryFull } = await supabase
+        .from('queue_entries')
+        .select('outlet_id, phone')
+        .eq('id', entry.id)
+        .single();
+
+      const { data: outletRow } = await supabase
+        .from('outlets')
+        .select('slug')
+        .eq('id', entryFull?.outlet_id)
+        .single();
+
+      const outlet = ConfigLoader.getInstance().getOutletBySlug(outletRow?.slug);
+
+      if (outlet?.alert_phones?.length) {
+        for (const alertPhone of outlet.alert_phones) {
+          await WhatsAppService.sendLowRatingAlert(
+            alertPhone,
+            outlet.name,
+            customerName,
+            foodRating,
+            ambianceRating,
+            serviceRating,
+            userFeedback,
+            entryFull.phone
+          );
+        }
+        console.log(`[StateMachine] Low rating alert sent to ${outlet.alert_phones.length} manager(s)`);
+      }
+    } catch (alertErr) {
+      console.warn('[StateMachine] Low rating alert failed:', alertErr.message);
+    }
+
     console.log(
       `[StateMachine] Feedback Flow completed for entry ${entry.id} — ` +
       `food=${foodRating}, ambiance=${ambianceRating}, service=${serviceRating}`

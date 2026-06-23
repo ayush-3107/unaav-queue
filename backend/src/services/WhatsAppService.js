@@ -293,6 +293,74 @@ class WhatsAppService {
   static async fetchProfileName(_phone) {
     return null;
   }
+
+  /**
+   * sendLowRatingAlert(to, outletName, customerName, foodRating,
+   *                    ambianceRating, serviceRating, feedback, customerPhone)
+   *
+   * Sent to all outlet manager phones when a customer submits 3★ or less.
+   * Template: low_rating_alert
+   *
+   * Params: {{1}}=outlet, {{2}}=name, {{3}}=food, {{4}}=ambiance,
+   *         {{5}}=service, {{6}}=feedback, {{7}}=customer phone
+   */
+  static async sendLowRatingAlert(
+    to, outletName, customerName,
+    foodRating, ambianceRating, serviceRating,
+    feedback, customerPhone
+  ) {
+    return WhatsAppService._post({
+      templateName:      'low_rating_alert',
+      language:          'en',
+      to,
+      templateVariables: [
+        outletName,
+        customerName  || 'Unknown',
+        foodRating    != null ? String(foodRating)    : 'N/A',
+        ambianceRating != null ? String(ambianceRating) : 'N/A',
+        serviceRating != null ? String(serviceRating) : 'N/A',
+        feedback      || 'No remarks',
+        customerPhone,
+      ],
+    });
+  }
+
+  /**
+   * sendDailyReport(to, outletName, date,
+   *                 totalCustomers, totalPax,
+   *                 lunchCount, lunchPax,
+   *                 dinnerCount, dinnerPax,
+   *                 star5, star4, star3orless)
+   *
+   * Sent to report_phones for each outlet at 8 AM IST daily.
+   * Template: daily_report
+   */
+  static async sendDailyReport(
+    to, outletName, date,
+    totalCustomers, totalPax,
+    lunchCount, lunchPax,
+    dinnerCount, dinnerPax,
+    star5, star4, star3orless
+  ) {
+    return WhatsAppService._post({
+      templateName:      'daily_report',
+      language:          'en',
+      to,
+      templateVariables: [
+        outletName,
+        date,
+        String(totalCustomers),
+        String(totalPax),
+        String(lunchCount),
+        String(lunchPax),
+        String(dinnerCount),
+        String(dinnerPax),
+        String(star5),
+        String(star4),
+        String(star3orless),
+      ],
+    });
+  }
 }
 
 export default WhatsAppService;

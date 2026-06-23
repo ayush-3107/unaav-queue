@@ -4,44 +4,62 @@
       "slug": "dwarka",
       "name": "Unaav Dwarka",
       "wa_identifier": "Hi Unaav Dwarka",
-      "wa_phone_number_id": "FILL_WHEN_META_CREDENTIALS_AVAILABLE",
       "opening_time": "09:00",
       "closing_time": "22:00",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 10,
       "max_party_size": 10,
+      "lunch_cutoff": "15:30",
+      "alert_phones": [
+        "918950588923","918930188922"
+      ],
+      "report_phones": [
+        "918950588923","918930188922"
+      ],
       "managers": [
-        { "username": "RaviDwarka",  "password": "1234" },
-        { "username": "AnilDwarka",  "password": "1234" }
+        { "username": "RaviDwarka", "password": "1234" },
+        { "username": "AnilDwarka", "password": "1234" }
       ]
     },
     {
       "slug": "paschim-vihar",
       "name": "Unaav Paschim Vihar",
       "wa_identifier": "Hi Unaav Paschim Vihar",
-      "wa_phone_number_id": "FILL_WHEN_META_CREDENTIALS_AVAILABLE",
       "opening_time": "09:00",
       "closing_time": "22:00",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 10,
       "max_party_size": 10,
+      "lunch_cutoff": "15:30",
+      "alert_phones": [
+        "918950588923","918930188922"
+      ],
+      "report_phones": [
+        "918950588923","918930188922"
+      ],
       "managers": [
-        { "username": "RaviPV",  "password": "1234" }
+        { "username": "RaviPV", "password": "1234" }
       ]
     },
     {
       "slug": "nsp",
       "name": "Unaav NSP",
       "wa_identifier": "Hi Unaav NSP",
-      "wa_phone_number_id": "FILL_WHEN_META_CREDENTIALS_AVAILABLE",
       "opening_time": "09:00",
       "closing_time": "22:00",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 10,
       "max_party_size": 10,
+      "lunch_cutoff": "15:30",
+      "alert_phones": [
+        "918950588923","918930188922"
+      ],
+      "report_phones": [
+        "918950588923","918930188922"
+      ],
       "managers": [
-        { "username": "RaviNSP",  "password": "1234" },
-        { "username": "NSP",  "password": "1234" }
+        { "username": "RaviNSP", "password": "1234" },
+        { "username": "NSP",     "password": "1234" }
       ]
     }
   ]
