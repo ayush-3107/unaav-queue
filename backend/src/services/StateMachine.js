@@ -83,7 +83,7 @@ class StateMachine {
         // was reset after seating. Look up most recent seated entry by phone.
         if (WhatsAppService.parseStarRating(text) !== null) {
           const starRating = WhatsAppService.parseStarRating(text);
-          await StateMachine.handleReviewRating(phone, starRating, session);
+          await StateMachine.handleReviewRating(phone, starRating, session, customerName);
           return;
         }
 
@@ -138,7 +138,7 @@ class StateMachine {
         // overall_rating DB update when these arrive here as a fallback.
         const starRating = WhatsAppService.parseStarRating(text);
         if (starRating !== null && session.queue_entry_id) {
-          await StateMachine.handleReviewRating(phone, starRating, session);
+          await StateMachine.handleReviewRating(phone, starRating, session, customerName);
           break;
         }
 
@@ -368,7 +368,7 @@ class StateMachine {
    * 4-5 stars → positive thank-you message.
    * 1-3 stars → apology message + feedback form CTA.
    */
-  static async handleReviewRating(phone, starRating, session) {
+  static async handleReviewRating(phone, starRating, session, liveCustomerName = null) {
     // Phone is stored in DB without country code prefix in older entries
     // e.g. DB has '8930188922' but phone param is '+918930188922'
     // Build multiple formats to search across all possible stored formats
@@ -410,8 +410,8 @@ class StateMachine {
 
     const outlet = ConfigLoader.getInstance().getOutletBySlug(outletRow?.slug);
 
-    // Get best available customer name
-    let customerName = entry.customer_name;
+    // Priority: live WhatsApp profile name > entry name > session name
+    let customerName = liveCustomerName || entry.customer_name;
     if (!customerName) {
       const { data: sess } = await supabase
         .from('wa_sessions')
@@ -419,6 +419,14 @@ class StateMachine {
         .eq('queue_entry_id', entry.id)
         .maybeSingle();
       customerName = sess?.customer_name ?? null;
+    }
+
+    // Update entry customer_name if it was null
+    if (customerName && !entry.customer_name) {
+      await supabase
+        .from('queue_entries')
+        .update({ customer_name: customerName })
+        .eq('id', entry.id);
     }
 
     // Store overall rating
