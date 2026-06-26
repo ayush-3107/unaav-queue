@@ -8,7 +8,7 @@
       "closing_time": "22:00",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 10,
-      "max_party_size": 10,
+      "max_party_size": 20,
       "lunch_cutoff": "15:30",
       "alert_phones": [
         "918950588923","918930188922"
@@ -29,7 +29,7 @@
       "closing_time": "22:00",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 10,
-      "max_party_size": 10,
+      "max_party_size": 20,
       "lunch_cutoff": "15:30",
       "alert_phones": [
         "918950588923","918930188922"
@@ -45,21 +45,21 @@
       "slug": "nsp",
       "name": "Unaav NSP",
       "wa_identifier": "Hi Unaav NSP",
-      "opening_time": "09:00",
-      "closing_time": "22:00",
+      "opening_time": "07:00",
+      "closing_time": "23:30",
       "first_table_vacant_mins": 10,
-      "avg_turn_mins": 10,
-      "max_party_size": 10,
-      "lunch_cutoff": "15:30",
+      "avg_turn_mins": 3,
+      "max_party_size": 20,
+      "lunch_cutoff": "16:00",
       "alert_phones": [
-        "918950588923","918930188922"
+        "919902788887","919902677665"
       ],
       "report_phones": [
-        "918950588923","918930188922"
+        "919902788887","918950588923"
       ],
       "managers": [
-        { "username": "RaviNSP", "password": "1234" },
-        { "username": "NSP",     "password": "1234" }
+        { "username": "NSPRavi", "password": "ravi" },
+        { "username": "NSP", "password": "1234" }
       ]
     }
   ]
