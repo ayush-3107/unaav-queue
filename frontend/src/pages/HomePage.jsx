@@ -28,23 +28,33 @@ function isValidIndianPhone(value) {
 
 // ── Walk-in modal (inline — no extra file needed) ─────────────────────────────
 function WalkInModal({ outletId, onClose, onAdded }) {
-  const [name,      setName]      = useState('');
-  const [phone,     setPhone]     = useState('');
-  const [partySize, setPartySize] = useState('');
-  const [loading,   setLoading]   = useState(false);
+  const [name,       setName]       = useState('');
+  const [phone,      setPhone]      = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [partySize,  setPartySize]  = useState('');
+  const [loading,    setLoading]    = useState(false);
+
+  function handlePhoneChange(e) {
+    // Allow only digits, spaces, + and - while typing; cap at 15 chars
+    const raw = e.target.value.slice(0, 15);
+    setPhone(raw);
+    if (phoneError) setPhoneError('');
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!phone.trim()) {
-      toast.error('Phone number is required.');
+      setPhoneError('Phone number is required.');
       return;
     }
 
     if (!isValidIndianPhone(phone)) {
-      toast.error('Please enter a valid 10-digit phone number.');
+      setPhoneError('Invalid phone no.');
       return;
     }
+
+    setPhoneError('');
 
     const pax = parseInt(partySize, 10);
     if (!pax || pax < 1 || pax > 20) {
@@ -113,13 +123,20 @@ function WalkInModal({ outletId, onClose, onAdded }) {
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={handlePhoneChange}
               placeholder="+91 98100 12345"
               autoFocus
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent
-                         placeholder-gray-400"
+              maxLength={15}
+              className={`w-full px-3 py-2.5 rounded-lg border text-sm
+                         focus:outline-none focus:ring-2 focus:border-transparent
+                         placeholder-gray-400
+                         ${phoneError
+                           ? 'border-red-400 focus:ring-red-400'
+                           : 'border-gray-300 focus:ring-brand'}`}
             />
+            {phoneError && (
+              <p className="mt-1 text-xs text-red-500">{phoneError}</p>
+            )}
           </div>
 
                     {/* Party size — required */}
