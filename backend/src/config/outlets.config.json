@@ -49,7 +49,7 @@
       "closing_time": "23:30",
       "first_table_vacant_mins": 10,
       "avg_turn_mins": 3,
-      "max_party_size": 20,
+      "max_party_size": 20, 
       "lunch_cutoff": "16:00",
       "alert_phones": [
         "919902788887","919902677665"

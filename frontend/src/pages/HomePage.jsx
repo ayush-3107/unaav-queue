@@ -5,7 +5,7 @@
 // Manager can mark entry (seat), delete, or manually add a walk-in.
 
 import { useState }    from 'react';
-import { Link }        from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast           from 'react-hot-toast';
 import { useAuth }     from '../hooks/useAuth.js';
 import { useQueue }    from '../hooks/useQueue.js';
@@ -14,6 +14,17 @@ import QueueRow        from '../components/QueueRow.jsx';
 import ConfirmModal    from '../components/ConfirmModal.jsx';
 import EmptyState      from '../components/EmptyState.jsx';
 import apiClient       from '../apiClient.js';
+
+// Validates an Indian mobile number: exactly 10 digits, starts with 6-9.
+// Strips any non-digit characters (spaces, +91, dashes) before checking.
+function isValidIndianPhone(value) {
+  const digits = value.replace(/\D/g, '');
+  // Allow numbers that include a leading 91 country code (12 digits total)
+  const normalised = digits.length === 12 && digits.startsWith('91')
+    ? digits.slice(2)
+    : digits;
+  return /^[6-9]\d{9}$/.test(normalised);
+}
 
 // ── Walk-in modal (inline — no extra file needed) ─────────────────────────────
 function WalkInModal({ outletId, onClose, onAdded }) {
@@ -29,6 +40,12 @@ function WalkInModal({ outletId, onClose, onAdded }) {
       toast.error('Phone number is required.');
       return;
     }
+
+    if (!isValidIndianPhone(phone)) {
+      toast.error('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
     const pax = parseInt(partySize, 10);
     if (!pax || pax < 1 || pax > 20) {
       toast.error('Please enter a valid party size (1–20).');
@@ -154,6 +171,7 @@ function WalkInModal({ outletId, onClose, onAdded }) {
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { auth, logout } = useAuth();
+  const navigate = useNavigate();
   const { queue, loading, seat, remove, handleRealtimeEvent, refetch } = useQueue(auth.outlet_id);
 
   const [modal,       setModal]       = useState(null);   // confirm modal
@@ -164,12 +182,17 @@ export default function HomePage() {
 
   function openSeatModal(entry)   { setModal({ type: 'seat',   entry }); }
   function openDeleteModal(entry) { setModal({ type: 'delete', entry }); }
+  function openLogoutModal()      { setModal({ type: 'logout' }); }
   function closeModal()           { setModal(null); }
 
   async function handleConfirm() {
     if (!modal) return;
     if (modal.type === 'seat')   await seat(modal.entry.id);
     if (modal.type === 'delete') await remove(modal.entry.id);
+    if (modal.type === 'logout') {
+      logout();
+      navigate('/login', { replace: true });
+    }
     closeModal();
   }
 
@@ -190,7 +213,7 @@ export default function HomePage() {
             History
           </Link>
           <button
-            onClick={logout}
+            onClick={openLogoutModal}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
             Logout
